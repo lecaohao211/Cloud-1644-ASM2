@@ -1,40 +1,36 @@
-var pg_connect = require('./pg_connect');
+var express = require('express');
+var gen_box = require('../models/select_box');
+var display_product = require('../models/product_table');
+const { render } = require('ejs');
+var router = express.Router();
 
+/* GET home page. */
+var session;
+router.get('/', async function(req, res, next) {
+  session = req.session;
+  console.log(session.shop_id)
+  if(session.user_id){
+    let shop_id = session.shop_id;
+    let username = session.user_id;
+    let table = await display_product(shop_id,session);
+    let box_string = await gen_box();
+    res.render('admin', {title: 'Admin Page', name: username, select_box: box_string, table_string: table})
+  }
+  else{
+    res.redirect('/login');
+  }
+});
 
-async function gen_box() {
+router.post('/select_box', async function(req, res, next) {
+  let shop_id = req.body.shop;
+  username = req.session.user_id;
+  let table = await display_product(shop_id,session);
+  let box_string = await gen_box(shop_id);
+  res.render('admin', { title: 'Admin Page', 
+                        name: username, 
+                        select_box: box_string, 
+                        table_string: table});
 
-    // query
-    let queryCommand = `SELECT shops.id, shops.name, users.roles
-    FROM shops JOIN users ON shops.id = users.shop_id`;
+});
 
-    const data = await pg_connect.query(queryCommand);
-
-    let box_string =
-        `<form method='post' action="select_box">
-            <label for="shop">Choose a shop:</label>
-                <select name="shop" id="shop_id">
-                <option name="allShop" value=0 selected>All shops</option>
-        `
-    let select_item = data.rows.length;
-    for (let i = 0; i < select_item; i++) {
-        if (data.rows[i].roles != "admin" || data.rows[i].roles != "storeowner") {
-            box_string += `<option value=${data.rows[i].id}>${data.rows[i].name}</option>`;
-        }
-    }
-
-    // for (let i = 0; i < select_item; i++) {
-    //     if (data.rows[i].roles != "storeowner") {
-    //         box_string += `<option value=${data.rows[i].id}>${data.rows[i].name}</option>`;
-    //     }
-    // }
-
-    box_string += `</select>
-        <input type="submit" value="view">
-        </form>
-    `
-    // console.log(data);
-    return box_string;
-
-}
-
-module.exports = gen_box;
+module.exports = router;
